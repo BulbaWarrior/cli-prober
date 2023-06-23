@@ -12,23 +12,19 @@ struct Args {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-    tokio::spawn(async move {
-        loop {
-            let mut output = format!("checking {}. ", &args.url);
-            let res = probe(&args.url).await;
-            output.push_str(&format!("Result: {:?}", res));
-            println!("{output}");
+    loop {
+        let mut output = format!("checking {}. ", &args.url);
+        let res = probe(&args.url).await;
+        output.push_str(&format!("Result: {:?}", res));
+        println!("{output}");
 
-            tokio::time::sleep(Duration::from_secs(args.delay)).await
-        }
-    })
-    .await
-    .expect("task failure");
+        tokio::time::sleep(Duration::from_secs(args.delay)).await
+    }
 }
 
 #[derive(Debug)]
 enum ProbeResult {
-    Ok,
+    Ok(u16),
     Err(u16),
     UrlError,
 }
@@ -47,7 +43,10 @@ async fn probe(url: &str) -> ProbeResult {
         .expect("error sending request");
 
     match resp.error_for_status() {
-        Ok(_) => ProbeResult::Ok,
+        Ok(res) => {
+            let status = res.status().as_u16();
+            ProbeResult::Ok(status)
+        }
         Err(status_error) => ProbeResult::Err(
             status_error
                 .status()
